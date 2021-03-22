@@ -41,17 +41,16 @@ public class CertificateGenerator {
 
 
 
-
-
-    public static X509Certificate generateRoot(
+    public static X509Certificate generateInterAndEnd(
             SubjectDTO subjectDTO,
+            SubjectDTO subjectDTO2,
             KeyPair keyPair,
             final String hashAlgorithm,
 
             final int days)
-            throws OperatorCreationException, CertificateException, IOException, ParseException {
+            throws OperatorCreationException, CertificateException, IOException {
 
-        System.out.println(subjectDTO.getName());
+        //System.out.println(subjectDTO.getName());
         X500NameBuilder nameBuilder = new X500NameBuilder(BCStyle.INSTANCE);
         nameBuilder.addRDN(BCStyle.CN, subjectDTO.getName() + subjectDTO.getSurname());
         nameBuilder.addRDN(BCStyle.SURNAME, subjectDTO.getSurname());
@@ -72,27 +71,27 @@ public class CertificateGenerator {
 
         char[] array = "tim3".toCharArray();
         KeyStoreReader kr = new KeyStoreReader();
-        ks.loadKeyStore("rootCertificate.jks",array);
-        PrivateKey pk = kr.readPrivateKey("rootCertificate.jks","tim3","root","tim3");
-        System.out.println(pk);
+        ks.loadKeyStore("interCertificate.jks",array);
+
+        PrivateKey pk = kr.readPrivateKey("interCertificate.jks","tim3",subjectDTO2.getId().toString(),subjectDTO2.getId().toString());
+
         final ContentSigner contentSigner = new JcaContentSignerBuilder(hashAlgorithm).build(pk);
-
-
-
-       X509Certificate certRoot = (X509Certificate) kr.readCertificate("rootCertificate.jks", "tim3", "root");
-
-       Date certRDate = certRoot.getNotAfter();
-
-
-
-        if(certRDate.compareTo(notAfter) > 0) {
-            System.out.println("veci je");
-        }
 
         Boolean isCa = subjectDTO.isCA();
 
+
+
+
+
+
+
+
         if(isCa == true) {
-            System.out.println("usao");
+
+
+
+            X509Certificate certRoot = (X509Certificate) kr.readCertificate("interCertificate.jks", "tim3", subjectDTO2.getId().toString());
+            System.out.println(certRoot);
             final X509v3CertificateBuilder certificateBuilder =
                     new JcaX509v3CertificateBuilder( certRoot,
                             BigInteger.valueOf(now.toEpochMilli()),
@@ -107,12 +106,12 @@ public class CertificateGenerator {
 
 
 
-
             return new JcaX509CertificateConverter()
                     .setProvider(new BouncyCastleProvider()).getCertificate(certificateBuilder.build(contentSigner));
-        }
-        else {
+        } else {
 
+            X509Certificate certRoot = (X509Certificate) kr.readCertificate("interCertificate.jks", "tim3", subjectDTO2.getId().toString());
+            System.out.println(certRoot);
             final X509v3CertificateBuilder certificateBuilder =
                     new JcaX509v3CertificateBuilder(certRoot,
                             BigInteger.valueOf(now.toEpochMilli()),
@@ -128,12 +127,15 @@ public class CertificateGenerator {
 
 
 
+
             return new JcaX509CertificateConverter()
                     .setProvider(new BouncyCastleProvider()).getCertificate(certificateBuilder.build(contentSigner));
+
         }
+
+
     }
-
-
+    //funkcija se koristi za kreiranje startnog roota
     public static X509Certificate generate(final KeyPair keyPair,
                                            final String hashAlgorithm,
                                            final String cn,

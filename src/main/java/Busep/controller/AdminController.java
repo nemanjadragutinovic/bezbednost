@@ -103,6 +103,91 @@ public class AdminController {
 
     };
 
+    @GetMapping(value = "/getDaniIntermediate/{id}/{check}")
+    public ArrayList<?> dozvoljeniDaniIntermediate(@PathVariable String id,@PathVariable String check){
+        ArrayList<Integer> dozvoljeni= new ArrayList<Integer>();
+        char[] array = "tim3".toCharArray();
+        System.out.println(id+"ovo je nas id");
+
+        KeyStoreWriter ks=new KeyStoreWriter();
+        ks.loadKeyStore("interCertificate.jks",array);
+
+        KeyStoreReader kr=new KeyStoreReader();
+
+        X509Certificate cert = (X509Certificate) kr.readCertificate("interCertificate.jks", "tim3", id);
+
+        Instant now = Instant.now();
+        Date pocetniDan = Date.from(now);
+        System.out.println(pocetniDan + "pocetni dan");
+        Date dan = cert.getNotAfter();
+        System.out.println(dan + "krajnji dan");
+        LocalDate localDate = dan.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        System.out.println(localDate + "krajnji dan konvertovan");
+        LocalDate pocetni = pocetniDan.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        System.out.println(pocetni + "pocetni dan konvertovan");
+        //Period period =  Period.between(pocetni, localDate);
+        //System.out.println(period + "period izmedju pocetnog i krajnjeg dana");
+        long daysBetween = ChronoUnit.DAYS.between(pocetni, localDate);
+        //int diff = period.getDays();
+        System.out.println(daysBetween + "ukupno dana izmedju pocetnog i krjanjeg datuma");
+
+        int maxYear = 0;
+        if(check.equals("true")) {
+
+            maxYear = 15;
+        } else {
+            maxYear = 10;
+        }
+
+        int godine=(int)daysBetween/365;
+        for(int i=1; i<=godine; i++){
+            dozvoljeni.add(365*i);
+            System.out.println(365*i);
+            if( i == maxYear) {
+                break;
+            }
+        }
+
+        return dozvoljeni;
+    };
+
+    @PostMapping(value="/addCertificate/{check}/{dani}/{zahtevId}/{issuerId}",consumes = MediaType.APPLICATION_JSON_VALUE)
+    public void createCertificate(@PathVariable String check, @PathVariable String dani, @PathVariable String zahtevId,@PathVariable String issuerId) throws CertificateException, OperatorCreationException, IOException {
+
+        long num = Long.parseLong(zahtevId);
+        long isuerId = Long.parseLong(issuerId);
+        int danii = Integer.parseInt(dani);
+        Subject subject = subjectService.findOne((num));
+        Subject issuer = subjectService.findOne(isuerId);
+        subject.setCert(true);
+
+        if(check.equals("true")){
+
+            subject.setCA(true);
+        }
+        subjectRepository.save(subject);
+        KeyStoreWriter ks=new KeyStoreWriter();
+        KeyPair keyPar = ks.generateKeyPair();
+        SubjectDTO subjectDTO= new SubjectDTO(subject);
+        SubjectDTO issuerDTO= new SubjectDTO(issuer);
+        char[] array = "tim3".toCharArray();
+        CertificateGenerator certgen= new CertificateGenerator();
+        Certificate certIn =certgen.generateInterAndEnd(subjectDTO, issuerDTO, keyPar, "SHA256WithRSAEncryption",danii);
+        KeyStoreReader kr=new KeyStoreReader();
+        if(check.equals("true")){
+            ks.loadKeyStore("interCertificate.jks",array);
+            ks.write(subject.getId().toString(), keyPar.getPrivate() ,  subject.getId().toString().toCharArray(), certIn);
+            ks.saveKeyStore("interCertificate.jks", array);
+            X509Certificate cert = (X509Certificate) kr.readCertificate("interCertificate.jks", "tim3", zahtevId);
+            System.out.println(cert);
+        }else{
+            ks.loadKeyStore("endCertificate.jks",array);
+            ks.write(subject.getId().toString(), keyPar.getPrivate() ,  subject.getId().toString().toCharArray(), certIn);
+            ks.saveKeyStore("endCertificate.jks", array);
+            X509Certificate cert = (X509Certificate) kr.readCertificate("endCertificate.jks", "tim3", zahtevId);
+            System.out.println(cert);
+        }
+    };
 
 
     @GetMapping(value = "/getDani/{check}")

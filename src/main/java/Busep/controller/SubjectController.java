@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -71,6 +72,27 @@ public class SubjectController {
 
         return new ResponseEntity<>(subjectDTO, HttpStatus.OK);
     }
+    @GetMapping(value = "/CAsubjekti")
+    public ResponseEntity<List<SubjectDTO>> getAllSubjectsCA() throws CertificateEncodingException {
+        List<Subject> subjects = subjectService.findAll();
+        List<SubjectDTO> subjectDTOList = new ArrayList<>();
+        X509Certificate cert = null;
+        KeyStoreWriter ks=new KeyStoreWriter();
+        char[] array = "tim3".toCharArray();
+        ks.loadKeyStore("interCertificate.jks",array);
+        KeyStoreReader kr = new KeyStoreReader();
+
+        for(Subject subject : subjects) {
+            if(subject.isCert() == true && subject.isCA() == true) {
+                cert = (X509Certificate) kr.readCertificate("interCertificate.jks", "tim3", subject.getId().toString());
+               // if(ocspService.checkValidityOfParents(cert) == true) {
+                    subjectDTOList.add(new SubjectDTO(subject));
+            //    }
+            }
+        }
+
+        return new ResponseEntity<>(subjectDTOList, HttpStatus.OK);
+    }
 
     @GetMapping(value = "/preuzmiDatum/{id}")
     public ResponseEntity<?> getSubjectEndDate(@PathVariable String id) {
@@ -80,12 +102,12 @@ public class SubjectController {
         Subject subject = subjectService.findOne((idSubject));
 
         KeyStoreWriter ks=new KeyStoreWriter();
-        char[] array = "tim14".toCharArray();
+        char[] array = "tim3".toCharArray();
         if(subject.isCA()==true){
             ks.loadKeyStore("interCertificate.jks",array);
             KeyStoreReader kr = new KeyStoreReader();
 
-            X509Certificate cert = (X509Certificate) kr.readCertificate("interCertificate.jks", "tim14", subject.getId().toString());
+            X509Certificate cert = (X509Certificate) kr.readCertificate("interCertificate.jks", "tim3", subject.getId().toString());
             Date datum = cert.getNotAfter();
             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
             String datumString = dateFormat.format(datum);
@@ -94,7 +116,7 @@ public class SubjectController {
             ks.loadKeyStore("endCertificate.jks",array);
             KeyStoreReader kr = new KeyStoreReader();
 
-            X509Certificate cert = (X509Certificate) kr.readCertificate("endCertificate.jks", "tim14", subject.getId().toString());
+            X509Certificate cert = (X509Certificate) kr.readCertificate("endCertificate.jks", "tim3", subject.getId().toString());
             Date datum = cert.getNotAfter();
             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
             String datumString = dateFormat.format(datum);
