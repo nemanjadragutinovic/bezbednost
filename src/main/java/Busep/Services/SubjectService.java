@@ -31,6 +31,8 @@ public class SubjectService {
         return subjectRepository.findAll();
     }
 
-
+    public Subject findOne(Long id) {
+        return subjectRepository.findById(id).orElseGet(null);
+    }
 
 }
